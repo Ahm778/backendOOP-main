@@ -1,9 +1,6 @@
 package com.ekher.projet.demo.controllers;
-
 import com.ekher.projet.demo.dto.DomainDto;
-
 import com.ekher.projet.demo.services.DomainService;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,62 +1,73 @@
 package com.ekher.projet.demo.controllers;
-//import com.ekher.projet.demo.annotations.users.CheckInCache;
+
 import com.ekher.projet.demo.dto.ParticipantDto;
+import com.ekher.projet.demo.dto.ProfileDto;
+import com.ekher.projet.demo.dto.StructureDto;
 import com.ekher.projet.demo.dto.UserDto;
 import com.ekher.projet.demo.entities.Role;
-
 import com.ekher.projet.demo.models.requestData.ParticipantRequestData;
 import com.ekher.projet.demo.services.EmailService;
 import com.ekher.projet.demo.services.ParticipantService;
+import com.ekher.projet.demo.services.ProfileService;
+import com.ekher.projet.demo.services.StructureService;
 import com.ekher.projet.demo.utils.RandomPasswordGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
-
 @RequestMapping("/api/v1/participants")
 public class ParticipantController {
     private final ParticipantService participantService;
     private final EmailService emailService;
+    private final StructureService structureService;
+    private final ProfileService profileService;
+
     @Autowired
-    public ParticipantController(ParticipantService participantService,EmailService emailService) {
+    public ParticipantController(ParticipantService participantService,
+                                 EmailService emailService,
+                                 StructureService structureService,
+                                 ProfileService profileService) {
         this.participantService = participantService;
         this.emailService = emailService;
+        this.structureService = structureService;
+        this.profileService = profileService;
     }
-
-
 
     @GetMapping
-    public ResponseEntity<List<ParticipantDto>> getAllParticipants(@RequestParam(required = false, defaultValue = "0") Integer page) {
-        List<ParticipantDto> participants = participantService.getAllParticipants(page);
-        return new ResponseEntity<>(participants, HttpStatus.OK);
+    public ResponseEntity<List<ParticipantDto>> getAllParticipants(
+            @RequestParam(required = false, defaultValue = "0") Integer page) {
+        return ResponseEntity.ok(participantService.getAllParticipants(page));
     }
 
-
-
-    //@CheckInCache(type = "participant")
     @GetMapping("/{id}")
     public ResponseEntity<ParticipantDto> getParticipant(@PathVariable Long id) {
         if (id == null) {
-
-
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provided participant id is nul");
+            return ResponseEntity.badRequest().build();
         }
-        ParticipantDto participant = participantService.getParticipant(id);
-        return new ResponseEntity<>(participant, HttpStatus.OK);
+        return participantService.getParticipant(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
-
-
 
     @PostMapping
     public ResponseEntity<ParticipantDto> createParticipant(@RequestBody ParticipantRequestData data) {
-        if (data == null || data.getEmail() == null || data.getUsername() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provided participant id is nul");
+        if (data == null || data.getEmail() == null || data.getUsername() == null ||
+                data.getStructureId() == null || data.getProfileId() == null) {
+            return ResponseEntity.badRequest().build();
         }
+
+        Optional<StructureDto> structure = structureService.getStructureById(data.getStructureId());
+        Optional<ProfileDto> profile = profileService.getProfileById(data.getProfileId());
+
+        if (structure.isEmpty() || profile.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
         String password = RandomPasswordGenerator.generateRandomPassword();
         UserDto user = UserDto.builder()
                 .email(data.getEmail())
@@ -69,64 +80,71 @@ public class ParticipantController {
                 .gender(data.getGender())
                 .profilePicture(data.getProfilePicture())
                 .build();
+
         ParticipantDto participantDto = ParticipantDto.builder()
                 .user(user)
-                .structure(data.getStructure())
-                .profile(data.getProfile())
+                .structure(structure.get())
+                .profile(profile.get())
                 .build();
-        ParticipantDto participant = participantService.createParticipant(participantDto);
-        emailService.sendSimpleEmail(user.getEmail(), "An account with this email have been created",password);
-        return new ResponseEntity<>(participant, HttpStatus.CREATED);
+
+        ParticipantDto createdParticipant = participantService.createParticipant(participantDto);
+        emailService.sendSimpleEmail(user.getEmail(), "Account created", password);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdParticipant);
     }
 
-
-
     @PatchMapping("/{id}")
-    public ResponseEntity<ParticipantDto> updateParticipant(@PathVariable Long id, @RequestBody ParticipantRequestData data) {
-        if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provided participantId is null");
+    public ResponseEntity<Optional<ParticipantDto>> updateParticipant(@PathVariable Long id,
+                                                                      @RequestBody ParticipantRequestData data) {
+        if (id == null || data == null) {
+            return ResponseEntity.badRequest().build();
         }
 
-        if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provided participantId is null");
-        }
+        return participantService.getParticipant(id)
+                .map(existingParticipant -> {
+                    UserDto user = updateUserFields(existingParticipant.getUser(), data);
 
-        ParticipantDto participant = participantService.getParticipant(id);
-        if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provided participantId is null");
-        }
+                    StructureDto structure = data.getStructureId() != null
+                            ? structureService.getStructureById(data.getStructureId()).orElse(existingParticipant.getStructure())
+                            : existingParticipant.getStructure();
 
-        UserDto oldUser = participant.getUser();
-        UserDto newUser = UserDto.builder()
-                .username(data.getUsername() != null ? data.getUsername() : oldUser.getUsername())
-                .email(data.getEmail() != null ? data.getEmail() : oldUser.getEmail())
-                .dateOfBirth(data.getDateOfBirth() != null ? data.getDateOfBirth() : oldUser.getDateOfBirth())
-                .description(data.getDescription() != null ? data.getDescription() : oldUser.getDescription())
-                .password(oldUser.getPassword())
+                    ProfileDto profile = data.getProfileId() != null
+                            ? profileService.getProfileById(data.getProfileId()).orElse(existingParticipant.getProfile())
+                            : existingParticipant.getProfile();
+
+                    ParticipantDto updatedParticipant = ParticipantDto.builder()
+                            .participantId(existingParticipant.getParticipantId())
+                            .user(user)
+                            .structure(structure)
+                            .profile(profile)
+                            .build();
+
+                    return ResponseEntity.ok(participantService.updateParticipant(updatedParticipant));
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private UserDto updateUserFields(UserDto existingUser, ParticipantRequestData data) {
+        return UserDto.builder()
+                .userId(existingUser.getUserId())
+                .username(data.getUsername() != null ? data.getUsername() : existingUser.getUsername())
+                .email(data.getEmail() != null ? data.getEmail() : existingUser.getEmail())
+                .dateOfBirth(data.getDateOfBirth() != null ? data.getDateOfBirth() : existingUser.getDateOfBirth())
+                .description(data.getDescription() != null ? data.getDescription() : existingUser.getDescription())
+                .password(existingUser.getPassword())
                 .role(Role.PARTICIPANT)
-                .userId(participant.getUser().getUserId())
-                .gender(data.getGender() != null ? data.getGender() : oldUser.getGender())
-                .phoneNumber(data.getPhoneNumber() != null ? data.getPhoneNumber() : oldUser.getPhoneNumber())
-
-                .profilePicture(data.getProfilePicture() != null ? data.getProfilePicture() : oldUser.getProfilePicture())
+                .gender(data.getGender() != null ? data.getGender() : existingUser.getGender())
+                .phoneNumber(data.getPhoneNumber() != null ? data.getPhoneNumber() : existingUser.getPhoneNumber())
+                .profilePicture(data.getProfilePicture() != null ? data.getProfilePicture() : existingUser.getProfilePicture())
                 .build();
-        ParticipantDto newParticipant = ParticipantDto.builder()
-                .participantId(participant.getParticipantId())
-                .user(newUser)
-                .structure(data.getStructure() != null ? data.getStructure() : participant.getStructure())
-                .profile(data.getProfile() != null ? data.getProfile() : participant.getProfile())
-                .build();
-        ParticipantDto participantDto = participantService.updateParticipant(newParticipant);
-        return new ResponseEntity<>(participantDto, HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteParticipant(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteParticipant(@PathVariable Long id) {
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provided participantId is null");
+            return ResponseEntity.badRequest().build();
         }
-
-        participantService.deleteParticipant(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        return participantService.deleteParticipant(id)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
     }
 }

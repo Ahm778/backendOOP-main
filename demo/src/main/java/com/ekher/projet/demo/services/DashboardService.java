@@ -2,7 +2,7 @@ package com.ekher.projet.demo.services;
 
 import com.ekher.projet.demo.entities.Gender;
 import com.ekher.projet.demo.entities.TrainerType;
-import com.ekher.projet.demo.models.OtherDetails;
+import com.ekher.projet.demo.models.dashboardData.OtherDetails;
 import com.ekher.projet.demo.models.dashboardData.*;
 import com.ekher.projet.demo.repositories.TrainingParticipantsRepository;
 import com.ekher.projet.demo.repositories.TrainingRepository;
@@ -13,7 +13,9 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Transactional
@@ -45,7 +47,8 @@ public class DashboardService {
         trainingParticipantsRepository.getAllTrainingIds().forEach(trainingId -> {
             income.set(income.get() + trainingParticipantsRepository.getIncomePerTraining(trainingId));
         });
-        return TrainingsDetails.builder().nbTrainings(nbTrainings).totalIncome(income.get()).build();
+        List<DomainCount>  trainingsPerDomain=trainingRepository.getTrainingsPerDomain();
+        return TrainingsDetails.builder().nbTrainings(nbTrainings).trainingsPerDomain(trainingsPerDomain).totalIncome(income.get()).build();
 
     }
     public TrainersDetails getTrainersDetails(){

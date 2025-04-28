@@ -4,25 +4,22 @@ import com.ekher.projet.demo.dto.TrainingDto;
 import com.ekher.projet.demo.dto.ParticipantDto;
 import com.ekher.projet.demo.dto.TrainerDto;
 import com.ekher.projet.demo.dto.UserDto;
+import com.ekher.projet.demo.entities.Role;
 import com.ekher.projet.demo.models.requestData.UserRequestData;
 import com.ekher.projet.demo.services.TrainingEnrollmentService;
 import com.ekher.projet.demo.services.EmailService;
 import com.ekher.projet.demo.services.UserService;
 import com.ekher.projet.demo.utils.EnumsHelperMethods;
 import com.ekher.projet.demo.utils.RandomPasswordGenerator;
-
-import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
 @RestController
-
 @RequestMapping("/api/v1/users")
 public class UserController {
     private final UserService userService;
@@ -41,58 +38,94 @@ public class UserController {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // ... autres méthodes inchangées ...
+    @GetMapping
+    public ResponseEntity<List<UserDto>> getAllUsers(@RequestParam(defaultValue = "0") Integer page) {
+        return ResponseEntity.ok(userService.getAllUsers(page));
+    }
 
-    @PatchMapping("/{userId}")
-    public ResponseEntity<UserDto> updateUser(@RequestBody UserDto userDto, @PathVariable Long userId) throws BadRequestException {
-        if(userId == null){
-            throw new BadRequestException("Invalid user Id, please try again");
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserDto> getUser(@PathVariable Long userId) {
+        if (userId == null) {
+            return ResponseEntity.badRequest().build();
         }
-        UserDto oldUser = userService.getUserById(userId);
-        if(oldUser == null){
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "No user found with id " + userId);
+        return ResponseEntity.of(userService.getUserById(userId));
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createUser(@RequestBody UserRequestData data) {
+        if (data == null || data.getUsername() == null || data.getEmail() == null ||
+                !EnumsHelperMethods.isValidRole(data.getRole())) {
+            return ResponseEntity.badRequest().build();
         }
 
-        UserDto updatedUser = UserDto.builder()
-                .username(userDto.getUsername() != null ? userDto.getUsername() : oldUser.getUsername())
-                .email(userDto.getEmail() != null ? userDto.getEmail() : oldUser.getEmail())
-                .password(userDto.getPassword() != null ? userDto.getPassword() : oldUser.getPassword())
-                .role(userDto.getRole() != null ? userDto.getRole() : oldUser.getRole())
-                .dateOfBirth(userDto.getDateOfBirth() != null ? userDto.getDateOfBirth() : oldUser.getDateOfBirth())
-                .description(userDto.getDescription() != null ? userDto.getDescription() : oldUser.getDescription())
-                .userId(userId)
-                .gender(userDto.getGender() != null ? userDto.getGender() : oldUser.getGender())
-                .phoneNumber(userDto.getPhoneNumber() != null ? userDto.getPhoneNumber() : oldUser.getPhoneNumber())
-                .profilePicture(userDto.getProfilePicture() != null ? userDto.getProfilePicture() : oldUser.getProfilePicture())
+        String password = RandomPasswordGenerator.generateRandomPassword();
+        UserDto userDto = UserDto.builder()
+                .username(data.getUsername())
+                .email(data.getEmail())
+                .password(passwordEncoder.encode(password))
+                .role(data.getRole())
+                .description(data.getDescription())
+                .dateOfBirth(data.getDateOfBirth())
+                .phoneNumber(data.getPhoneNumber())
+                .gender(data.getGender())
+                .profilePicture(data.getProfilePicture())
                 .build();
 
-        UserDto response = userService.updateUser(updatedUser);
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        UserDto response = userService.createUser(userDto);
+        emailService.sendSimpleEmail(userDto.getEmail(), "An account with this email have been created", password);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PatchMapping("/{userId}")
+    public ResponseEntity<? extends Object> updateUser(@RequestBody UserDto userDto, @PathVariable Long userId) {
+        if (userId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        return userService.getUserById(userId)
+                .map(oldUser -> {
+                    UserDto updatedUser = UserDto.builder()
+                            .username(userDto.getUsername() != null ? userDto.getUsername() : oldUser.getUsername())
+                            .email(userDto.getEmail() != null ? userDto.getEmail() : oldUser.getEmail())
+                            .password(userDto.getPassword() != null ? userDto.getPassword() : oldUser.getPassword())
+                            .role(userDto.getRole() != null ? userDto.getRole() : oldUser.getRole())
+                            .dateOfBirth(userDto.getDateOfBirth() != null ? userDto.getDateOfBirth() : oldUser.getDateOfBirth())
+                            .description(userDto.getDescription() != null ? userDto.getDescription() : oldUser.getDescription())
+                            .userId(userId)
+                            .gender(userDto.getGender() != null ? userDto.getGender() : oldUser.getGender())
+                            .phoneNumber(userDto.getPhoneNumber() != null ? userDto.getPhoneNumber() : oldUser.getPhoneNumber())
+                            .profilePicture(userDto.getProfilePicture() != null ? userDto.getProfilePicture() : oldUser.getProfilePicture())
+                            .build();
+
+                    return ResponseEntity.ok(userService.updateUser(updatedUser));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     @DeleteMapping("/{userId}")
-    public ResponseEntity<String> deleteUser(@PathVariable Long userId) throws BadRequestException {
-        if(userId==null){
-            throw new BadRequestException("The provided user id is null");
+    public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
+        if (userId == null) {
+            return ResponseEntity.badRequest().build();
         }
-        userService.deleteUser(userId);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
 
+        if (userService.getUserById(userId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        userService.deleteUser(userId);
+        return ResponseEntity.noContent().build();
+    }
 
     @GetMapping("/{id}/enrollments")
-    public ResponseEntity<List<TrainingDto>> getEnrollments(@PathVariable Long id) throws BadRequestException {
-        if(id==null){
-            throw new BadRequestException("The provided user id is null");
+    public ResponseEntity<List<TrainingDto>> getEnrollments(@PathVariable Long id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().build();
         }
-        List<TrainingDto> enrollments=trainingEnrollmentService.getParticipantsEnrollment(id);
-        return ResponseEntity.ok(enrollments);
+        return ResponseEntity.ok(trainingEnrollmentService.getParticipantsEnrollment(id));
     }
 
-
-
-
+    @GetMapping("/managers")
+    public ResponseEntity<List<UserDto>> getAllManagers() {
+        return ResponseEntity.ok(userService.getUsersByRole(Role.MANAGER));
+    }
 }

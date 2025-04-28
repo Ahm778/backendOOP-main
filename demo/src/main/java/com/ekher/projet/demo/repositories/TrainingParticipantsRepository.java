@@ -1,5 +1,4 @@
 package com.ekher.projet.demo.repositories;
-
 import com.ekher.projet.demo.entities.TrainingParticipant;
 import com.ekher.projet.demo.entities.TrainingParticipantsId;
 import com.ekher.projet.demo.models.dashboardData.TopUsers;
@@ -34,7 +33,7 @@ public interface TrainingParticipantsRepository extends JpaRepository<TrainingPa
                     "FROM users u JOIN training_participants tp ON u.user_id = tp.user_id " +
                     "GROUP BY u.user_id, u.username ORDER BY participant_count DESC LIMIT 3")
     List<TopUsers> getTopParticipants();
-
+    // Fixed query to join with domains table to get domain_name
     @Query(nativeQuery = true, value =
             "WITH top_users AS ( " +
                     "    SELECT u.user_id, u.username, COUNT(tp.training_id) AS total_training_count " +
@@ -44,11 +43,12 @@ public interface TrainingParticipantsRepository extends JpaRepository<TrainingPa
                     "    ORDER BY total_training_count DESC " +
                     "    LIMIT 3 " +
                     ") " +
-                    "SELECT tu.user_id, tu.username, t.domain_name, COUNT(tp.training_id) AS domain_training_count " +
+                    "SELECT tu.user_id, tu.username, d.domain_name, COUNT(tp.training_id) AS domain_training_count " +
                     "FROM top_users tu " +
                     "JOIN training_participants tp ON tu.user_id = tp.user_id " +
                     "JOIN trainings t ON tp.training_id = t.training_id " +
-                    "GROUP BY tu.user_id, tu.username, t.domain_name " +
+                    "JOIN domains d ON t.domain_id = d.domain_id " +
+                    "GROUP BY tu.user_id, tu.username, d.domain_name " +
                     "ORDER BY tu.username, domain_training_count DESC")
-    List<TopUsers> getTopParticipantsWithDomains();
+    List<TopUsers   > getTopParticipantsWithDomains();
 }

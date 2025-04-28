@@ -1,3 +1,4 @@
+
 package com.ekher.projet.demo.services;
 
 import com.ekher.projet.demo.entities.Role;
@@ -26,7 +27,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User Not Found with email: " + email));
 
         return new org.springframework.security.core.userdetails.User(
-                user.getEmail(), // Using email as username
+                user.getEmail(),
                 user.getPassword(),
                 getAuthorities(user.getRole())
         );

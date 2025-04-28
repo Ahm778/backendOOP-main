@@ -7,7 +7,6 @@ import com.ekher.projet.demo.security.JwtUtils;
 import com.ekher.projet.demo.services.UserService;
 import com.ekher.projet.demo.utils.EnumsHelperMethods;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.coyote.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -28,40 +28,54 @@ import java.util.Map;
 public class AuthenticationController {
     private final AuthenticationManager authenticationManager;
     private final UserService userService;
-    private final  PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
 
-    public AuthenticationController(AuthenticationManager authenticationManager, UserService userService, PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
+    public AuthenticationController(AuthenticationManager authenticationManager,
+                                    UserService userService,
+                                    PasswordEncoder passwordEncoder,
+                                    JwtUtils jwtUtils) {
         this.authenticationManager = authenticationManager;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
     }
+
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequestData data) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        data.getEmail(),
-                        data.getPassword()
-                )
-        );
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            data.getEmail(),
+                            data.getPassword()
+                    )
+            );
 
-        authentication.getPrincipal();
-        UserDto userDto = userService.getUserByEmail(data.getEmail());
-        String token = jwtUtils.generateToken(userDto);
-        Map<String, Object> response = new HashMap<>();
-        response.put("email", userDto.getEmail());
-        response.put("token", token);
+            Optional<UserDto> userOptional = userService.getUserByEmail(data.getEmail());
+            if (userOptional.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
 
-        return new ResponseEntity<>(response,HttpStatus.OK);
-    }
-    @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody UserRequestData data) throws BadRequestException {
-        boolean wrongRequest=data==null || data.getUsername()==null || data.getEmail()==null || !EnumsHelperMethods.isValidRole(data.getRole());
-        if(wrongRequest){
-            throw new BadRequestException("Invalid input data, please try again");
+            UserDto userDto = userOptional.get();
+            String token = jwtUtils.generateToken(userDto);
+            Map<String, Object> response = new HashMap<>();
+            response.put("email", userDto.getEmail());
+            response.put("token", token);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        UserDto userDto=UserDto.builder()
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@RequestBody UserRequestData data) {
+        if (data == null || data.getUsername() == null || data.getEmail() == null ||
+                !EnumsHelperMethods.isValidRole(data.getRole())) {
+            return ResponseEntity.badRequest().body("Invalid input data");
+        }
+
+        UserDto userDto = UserDto.builder()
                 .username(data.getUsername())
                 .email(data.getEmail())
                 .password(passwordEncoder.encode(data.getPassword()))
@@ -72,8 +86,8 @@ public class AuthenticationController {
                 .gender(data.getGender())
                 .profilePicture(data.getProfilePicture())
                 .build();
-        UserDto response=userService.createUser(userDto);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+
+        UserDto response = userService.createUser(userDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
-

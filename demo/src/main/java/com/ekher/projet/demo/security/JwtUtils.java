@@ -1,94 +1,75 @@
 package com.ekher.projet.demo.security;
 
-import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.ekher.projet.demo.dto.UserDto;
+import com.ekher.projet.demo.entities.Role;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import com.ekher.projet.demo.dto.UserDto;
-
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 @Component
 public class JwtUtils {
-    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+    @Value("${jwt.secret}")
+    private String  jwtSecret;
+    @Value("${jwt.expiration}")
+    private int jwtExpiration;
+    private SecretKey secretKey;
+    @PostConstruct
+    public void init(){
+        this.secretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    }
 
-    @Value("${app.jwtSecret:defaultSecretKeyWhichShouldBeChangedInProduction}")
-    private String jwtSecret;
-
-    @Value("${app.jwtExpirationMs:86400000}")
-    private int jwtExpirationMs;
-
-    public String generateJwtToken(Authentication authentication) {
-        UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
-
+    public String generateToken(UserDto user){
         return Jwts.builder()
-                .setSubject((userPrincipal.getUsername()))
-                .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(key(), SignatureAlgorithm.HS256)
+                .subject(user.getUserId().toString())
+                .claim("username", user.getUsername())
+                .claim("email", user.getEmail())
+                .claim("role", user.getRole().name())
+                .claim("profileImage", user.getProfilePicture())
+                .issuedAt(new Date())
+                .expiration(new Date(new Date().getTime()+ jwtExpiration))
+                .signWith(secretKey, Jwts.SIG.HS256)
                 .compact();
     }
 
-    // Méthode pour générer un token à partir d'un UserDto
-    public String generateToken(UserDto userDto) {
-        Map<String, Object> claims = new HashMap<>();
-        // Ajoutez ici les claims que vous souhaitez inclure dans le token
-        if (userDto.getRole() != null) {
-            claims.put("role", userDto.getRole());
-        }
-
-        return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(userDto.getEmail()) // Utilisation de l'email comme sujet du token
-                .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                .signWith(key(), SignatureAlgorithm.HS256)
-                .compact();
-    }
-
-    // Méthode pour extraire les détails de l'utilisateur à partir du token
-    public String extractUserDetails(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key())
+    public UserDto extractUserDetails(String token) {
+        var claims = Jwts.parser()
+                .verifyWith(secretKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+                .parseSignedClaims(token)
+                .getPayload();
+
+        Long userId = Long.parseLong(claims.getSubject());
+        String username = claims.get("username", String.class);
+        Role role = Role.valueOf(claims.get("role", String.class));
+        String email = claims.get("email", String.class);
+        return UserDto.builder().userId(userId).username(username).role(role).email(email).build();
     }
 
-    private Key key() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
-    }
-
-    public String getUserNameFromJwtToken(String token) {
-        return Jwts.parserBuilder().setSigningKey(key()).build()
-                .parseClaimsJws(token).getBody().getSubject();
-    }
-
-    public boolean validateJwtToken(String authToken) {
+    public boolean validateJwtToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(key()).build().parse(authToken);
+            Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token);
             return true;
+        } catch (SecurityException e) {
+            System.out.println("Invalid JWT signature: " + e.getMessage());
         } catch (MalformedJwtException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
+            System.out.println("Invalid JWT token: " + e.getMessage());
         } catch (ExpiredJwtException e) {
-            logger.error("JWT token is expired: {}", e.getMessage());
+            System.out.println("JWT token is expired: " + e.getMessage());
         } catch (UnsupportedJwtException e) {
-            logger.error("JWT token is unsupported: {}", e.getMessage());
+            System.out.println("JWT token is unsupported: " + e.getMessage());
         } catch (IllegalArgumentException e) {
-            logger.error("JWT claims string is empty: {}", e.getMessage());
+            System.out.println("JWT claims string is empty: " + e.getMessage());
         }
-
         return false;
     }
+
 }

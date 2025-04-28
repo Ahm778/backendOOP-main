@@ -14,7 +14,7 @@ public class UserMapper {
                 .email(dto.getEmail())
                 .gender(dto.getGender())
                 .phoneNumber(dto.getPhoneNumber())
-                .profilePicture(dto.getProfilePicture())
+
                 .role(dto.getRole())
                 .build();
     }
@@ -28,7 +28,7 @@ public class UserMapper {
                 .email(user.getEmail())
                 .gender(user.getGender())
                 .phoneNumber(user.getPhoneNumber())
-                .profilePicture(user.getProfilePicture())
+
                 .role(user.getRole())
                 .build();
     }
@@ -36,8 +36,11 @@ public class UserMapper {
         return UserDto.builder()
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .profilePicture(user.getProfilePicture())
+                .build();
+    }
+    public static UserDto toLightestDto(User user){
+        return UserDto.builder()
+                .username(user.getUsername())
                 .build();
     }
 }
-

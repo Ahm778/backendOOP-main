@@ -6,7 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
 @Entity
 @Table(name = "trainers")
 @Builder
@@ -16,13 +15,16 @@ import lombok.NoArgsConstructor;
 public class Trainer {
     @Id
     private Long trainerId;
-    @Column(nullable = false)
-    private String employerName;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "employer_id", referencedColumnName = "id", nullable = false)
+    private Employer employer;
+
     @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id", referencedColumnName = "userId", nullable = false)
     private User user;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private TrainerType trainerType;
 }
-
