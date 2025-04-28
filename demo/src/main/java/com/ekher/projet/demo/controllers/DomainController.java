@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 
-@RequestMapping("/api/v1/domains")
+@RequestMapping("/api/domains")
 public class DomainController {
     private final DomainService domainService;
 

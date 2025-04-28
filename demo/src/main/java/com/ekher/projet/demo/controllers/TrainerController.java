@@ -6,7 +6,7 @@ import com.ekher.projet.demo.dto.UserDto;
 import com.ekher.projet.demo.entities.Role;
 import com.ekher.projet.demo.models.requestData.TrainerRequestData;
 import com.ekher.projet.demo.services.TrainingService;
-import com.ekher.projet.demo.services.EmailService;
+
 import com.ekher.projet.demo.services.EmployerService;
 import com.ekher.projet.demo.services.TrainerService;
 import com.ekher.projet.demo.utils.RandomPasswordGenerator;
@@ -19,19 +19,19 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/v1/trainers")
+@RequestMapping("/api/trainers")
 public class TrainerController {
 
     private final TrainerService trainerService;
-    private final EmailService emailService;
+
     private final TrainingService trainingService;
     private final EmployerService employerService;
 
     @Autowired
-    public TrainerController(TrainerService trainerService, EmailService emailService,
+    public TrainerController(TrainerService trainerService,
                              TrainingService trainingService, EmployerService employerService) {
         this.trainerService = trainerService;
-        this.emailService = emailService;
+
         this.employerService = employerService;
         this.trainingService = trainingService;
     }
@@ -77,7 +77,7 @@ public class TrainerController {
                             .build();
 
                     TrainerDto createdTrainer = trainerService.createTrainer(trainerDto);
-                    emailService.sendSimpleEmail(userDto.getEmail(), "Account created", password);
+
                     return ResponseEntity.status(HttpStatus.CREATED).body(createdTrainer);
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());

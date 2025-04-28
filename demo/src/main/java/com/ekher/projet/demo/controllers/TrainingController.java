@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/v1/trainings")
+@RequestMapping("/api/trainings")
 public class TrainingController {
     private final TrainingService trainingService;
     private final DomainService domainService;

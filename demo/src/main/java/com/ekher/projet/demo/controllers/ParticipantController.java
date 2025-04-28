@@ -6,7 +6,6 @@ import com.ekher.projet.demo.dto.StructureDto;
 import com.ekher.projet.demo.dto.UserDto;
 import com.ekher.projet.demo.entities.Role;
 import com.ekher.projet.demo.models.requestData.ParticipantRequestData;
-import com.ekher.projet.demo.services.EmailService;
 import com.ekher.projet.demo.services.ParticipantService;
 import com.ekher.projet.demo.services.ProfileService;
 import com.ekher.projet.demo.services.StructureService;
@@ -20,20 +19,17 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/v1/participants")
+@RequestMapping("/api/participants")
 public class ParticipantController {
     private final ParticipantService participantService;
-    private final EmailService emailService;
     private final StructureService structureService;
     private final ProfileService profileService;
 
     @Autowired
     public ParticipantController(ParticipantService participantService,
-                                 EmailService emailService,
                                  StructureService structureService,
                                  ProfileService profileService) {
         this.participantService = participantService;
-        this.emailService = emailService;
         this.structureService = structureService;
         this.profileService = profileService;
     }
@@ -88,7 +84,6 @@ public class ParticipantController {
                 .build();
 
         ParticipantDto createdParticipant = participantService.createParticipant(participantDto);
-        emailService.sendSimpleEmail(user.getEmail(), "Account created", password);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdParticipant);
     }
 

@@ -62,29 +62,29 @@ public class WebSecurityConfig {
                         authorizeRequests
                                 // Public endpoints
                                 .requestMatchers(
-                                        "/api/v1/auth/**",
+                                        "/api/auth/**",
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**"
                                 ).permitAll()
-                                .requestMatchers("/api/v1/participants/**")
+                                .requestMatchers("/api/participants/**")
                                 .hasAnyRole(Role.PARTICIPANT.name(), Role.ADMIN.name(),Role.TRAINER.name())
-                                .requestMatchers("/api/v1/trainers/**")
+                                .requestMatchers("/api/trainers/**")
                                 .hasAnyRole(Role.PARTICIPANT.name(),Role.TRAINER.name(),Role.ADMIN.name())
-                                .requestMatchers("/api/v1/employers/**")
+                                .requestMatchers("/api/employers/**")
                                 .hasAnyRole(Role.ADMIN.name(),Role.TRAINER.name())
-                                .requestMatchers("/api/v1/dashboard/**")
+                                .requestMatchers("/api/dashboard/**")
                                 .hasAnyRole( Role.ADMIN.name(),Role.MANAGER.name())
-                                .requestMatchers("/api/v1/profiles/**")
+                                .requestMatchers("/api/profiles/**")
                                 .hasAnyRole(Role.PARTICIPANT.name(), Role.ADMIN.name())
-                                .requestMatchers("/api/v1/structures/**")
+                                .requestMatchers("/api/structures/**")
                                 .hasAnyRole(Role.PARTICIPANT.name(), Role.ADMIN.name())
-                                .requestMatchers("/api/v1/users/**")
+                                .requestMatchers("/api/users/**")
                                 .hasAnyRole( Role.ADMIN.name())
-                                .requestMatchers("/api/v1/domains/**")
+                                .requestMatchers("/api/domains/**")
                                 .hasAnyRole(Role.PARTICIPANT.name(), Role.ADMIN.name(),Role.TRAINER.name())
-                                .requestMatchers("/api/v1/trainings/**")
+                                .requestMatchers("/api/trainings/**")
                                 .hasAnyRole(Role.PARTICIPANT.name(), Role.ADMIN.name(),Role.TRAINER.name())
-                                .requestMatchers("/api/v1/auth/logout")
+                                .requestMatchers("/api/auth/logout")
                                 .hasAnyRole(Role.PARTICIPANT.name(), Role.ADMIN.name(),Role.MANAGER.name(),Role.TRAINER.name())
                                 .anyRequest().authenticated()
                 );

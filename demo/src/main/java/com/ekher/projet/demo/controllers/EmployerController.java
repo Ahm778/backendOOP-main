@@ -12,7 +12,7 @@ import java.util.List;
 
 @RestController
 
-@RequestMapping("/api/v1/employers")
+@RequestMapping("/api/employers")
 public class EmployerController {
     private final EmployerService employerService;
 

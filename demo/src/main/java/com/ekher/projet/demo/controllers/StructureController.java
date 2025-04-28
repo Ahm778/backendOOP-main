@@ -14,7 +14,7 @@ import java.util.List;
 
 @RestController
 
-@RequestMapping("/api/v1/structures")
+@RequestMapping("/api/structures")
 public class StructureController {
     private final StructureService structureService;
 

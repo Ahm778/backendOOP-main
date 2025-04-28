@@ -17,7 +17,7 @@ import java.util.List;
 
 @RestController
 
-@RequestMapping("/api/v1/trainings")
+@RequestMapping("/api/trainings")
 public class TrainingEnrollmentController {
     private final TrainingEnrollmentService trainingEnrollmentService;
 

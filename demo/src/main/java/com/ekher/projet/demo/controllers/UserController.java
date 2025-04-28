@@ -7,7 +7,6 @@ import com.ekher.projet.demo.dto.UserDto;
 import com.ekher.projet.demo.entities.Role;
 import com.ekher.projet.demo.models.requestData.UserRequestData;
 import com.ekher.projet.demo.services.TrainingEnrollmentService;
-import com.ekher.projet.demo.services.EmailService;
 import com.ekher.projet.demo.services.UserService;
 import com.ekher.projet.demo.utils.EnumsHelperMethods;
 import com.ekher.projet.demo.utils.RandomPasswordGenerator;
@@ -20,21 +19,18 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/users")
 public class UserController {
     private final UserService userService;
     private final TrainingEnrollmentService trainingEnrollmentService;
-    private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public UserController(UserService userService,
                           TrainingEnrollmentService trainingEnrollmentService,
-                          EmailService emailService,
                           PasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.trainingEnrollmentService = trainingEnrollmentService;
-        this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -72,7 +68,6 @@ public class UserController {
                 .build();
 
         UserDto response = userService.createUser(userDto);
-        emailService.sendSimpleEmail(userDto.getEmail(), "An account with this email have been created", password);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
